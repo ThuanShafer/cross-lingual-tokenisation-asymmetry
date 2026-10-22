@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { useFindings } from "@/hooks/useFindings";
 import { requestAgreement } from "@/lib/api-client";
@@ -84,23 +83,28 @@ function Toolbar({ models, modelName, onModelChange, status, canPrint }) {
 }
 
 /** Research-paper view of the session findings, rendered for the browser's print-to-PDF. */
+function modelFromLocation() {
+  return new URLSearchParams(window.location.search).get("model");
+}
+
 export function ResearchReport() {
   const hydrated = useHydrated();
-  const router = useRouter();
-  const searchParams = useSearchParams();
   const allFindings = useFindings();
   const system = useSystemInfo();
+  const [selectedModel, setSelectedModel] = useState(null);
 
   const models = [...new Set(allFindings.map((f) => f.model.name))];
-  const requested = searchParams.get("model");
+  const requested = hydrated ? (selectedModel ?? modelFromLocation()) : null;
   const modelName = models.includes(requested) ? requested : models[0];
   const findings = useMemo(() => allFindings.filter((f) => f.model.name === modelName), [allFindings, modelName]);
   const analysis = useMemo(() => (findings.length ? analyzeFindings(findings) : null), [findings]);
   const { remaining } = useAgreementBackfill(findings);
-  const [generatedAt] = useState(() => new Date().toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" }));
+  const [generatedAt, setGeneratedAt] = useState("");
 
   useEffect(() => {
-    if (modelName) document.title = `Tokenization asymmetry - ${modelName} - ${new Date().toISOString().slice(0, 10)}`;
+    const now = new Date();
+    setGeneratedAt(now.toLocaleDateString(undefined, { year: "numeric", month: "long", day: "numeric" }));
+    if (modelName) document.title = `Tokenization asymmetry - ${modelName} - ${now.toISOString().slice(0, 10)}`;
   }, [modelName]);
 
   if (!hydrated) return <p className="paper-status">Loading report…</p>;
@@ -121,7 +125,10 @@ export function ResearchReport() {
       <Toolbar
         models={models}
         modelName={modelName}
-        onModelChange={(name) => router.replace(`/report?model=${encodeURIComponent(name)}`)}
+        onModelChange={(name) => {
+          window.history.replaceState(null, "", `/report?model=${encodeURIComponent(name)}`);
+          setSelectedModel(name);
+        }}
         status={status}
         canPrint={!remaining}
       />

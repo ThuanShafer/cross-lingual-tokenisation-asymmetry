@@ -1,19 +1,5 @@
-import { Suspense } from "react";
-import { connection } from "next/server";
 import { ComparisonWorkbench } from "@/components/ComparisonWorkbench";
 import { PRICING } from "@/config/model";
-import { listModels } from "@/server/model-catalog";
-
-function WorkbenchFallback() {
-  return <div className="h-[40rem] animate-pulse rounded-3xl border border-white/10 bg-white/[0.03]" />;
-}
-
-/** Installed models change at runtime, so they are read per request inside the Suspense boundary. */
-async function WorkbenchWithModels() {
-  await connection();
-  const catalog = await listModels().catch((error) => ({ models: [], defaultModel: null, error: error.message }));
-  return <ComparisonWorkbench {...catalog} />;
-}
 
 export default function Home() {
   return (
@@ -29,9 +15,7 @@ export default function Home() {
         </p>
       </header>
 
-      <Suspense fallback={<WorkbenchFallback />}>
-        <WorkbenchWithModels />
-      </Suspense>
+      <ComparisonWorkbench />
 
       <footer className="mt-auto text-center text-[11px] leading-relaxed text-white/35">
         Live query translation by NLLB-200 (600M); answers, token counts and timings come from the selected

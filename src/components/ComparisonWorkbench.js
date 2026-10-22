@@ -15,8 +15,36 @@ import { AnswerPane, QueryInput } from "./LanguagePane";
 import { LanguageSelect } from "./LanguageSelect";
 import { ModelSelect } from "./ModelSelect";
 
-export function ComparisonWorkbench({ models, defaultModel, error: modelsError }) {
-  const [modelName, setModelName] = useState(defaultModel);
+function useModelCatalog() {
+  const [catalog, setCatalog] = useState(null);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    fetch("/api/models", { signal: controller.signal })
+      .then(async (response) => {
+        const data = await response.json().catch(() => ({}));
+        if (!response.ok) throw new Error(data.error ?? "Could not list Ollama models");
+        return data;
+      })
+      .then((data) => setCatalog({ models: data.models ?? [], defaultModel: data.defaultModel ?? null, error: null }))
+      .catch((error) => {
+        if (error.name !== "AbortError") setCatalog({ models: [], defaultModel: null, error: error.message });
+      });
+    return () => controller.abort();
+  }, []);
+
+  return catalog;
+}
+
+export function ComparisonWorkbench() {
+  const catalog = useModelCatalog();
+  const models = catalog?.models ?? [];
+  const modelsError = catalog?.error;
+  const [modelName, setModelName] = useState(null);
+
+  useEffect(() => {
+    if (catalog?.defaultModel) setModelName((current) => current ?? catalog.defaultModel);
+  }, [catalog]);
   const [targetCode, setTargetCode] = useState(DEFAULT_TARGET_CODE);
   const [texts, setTexts] = useState({ left: "", right: "" });
   const [activeSide, setActiveSide] = useState("left");
@@ -88,6 +116,10 @@ export function ComparisonWorkbench({ models, defaultModel, error: modelsError }
       findingsStore.update(lastFindingId, { backTranslation: analysis.backTranslation, agreement: analysis.agreement });
     }
   }, [lastFindingId, analysis?.agreement, analysis?.backTranslation]);
+
+  if (!catalog) {
+    return <div className="h-[40rem] animate-pulse rounded-3xl border border-white/10 bg-white/[0.03]" />;
+  }
 
   const canSubmit =
     modelName && texts.left.trim() && texts.right.trim() && !translation.isTranslating && !isRunning;

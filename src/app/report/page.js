@@ -1,4 +1,3 @@
-import { Suspense } from "react";
 import { ResearchReport } from "@/components/paper/ResearchReport";
 
 export const metadata = {
@@ -6,9 +5,5 @@ export const metadata = {
 };
 
 export default function ReportPage() {
-  return (
-    <Suspense fallback={<p className="paper-status">Loading report…</p>}>
-      <ResearchReport />
-    </Suspense>
-  );
+  return <ResearchReport />;
 }
